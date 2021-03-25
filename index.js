@@ -1,7 +1,6 @@
 ; (async () => {
     console.log('load tlib.index')
 
-    let $
 
     window.tlib = {
         _mods: {},
@@ -13,19 +12,27 @@
                 await tlib.sleep(1000)
             }
         },
-        loadJquery: async () => {
-            $ = await tlib.loadScript(
+        _loadJquery: async () => {
+            return await tlib.loadScript(
                 "https://code.jquery.com/jquery-3.5.1.slim.min.js",
                 () => window.jQuery
             )
+        },
+        loadJquery: async () => {
             return $
         },
         loadScript: async (url, returnValueEval) => {
             var s = document.createElement('script')
-            s.src = "https://code.jquery.com/jquery-3.5.1.slim.min.js"
+            s.src = url
+            console.log("loadingScript", url)
             document.body.appendChild(s)
             await tlib.until(returnValueEval)
             return returnValueEval()
+        },
+        loadLocal: async (path) => {
+            return tlib.loadScript(
+                'http://localhost/tampermonkey-libs/' + path,
+                () => tlib._mods[path])
         },
         loadLib: async (path) => {
             return loadScript(
@@ -78,13 +85,27 @@
     document.onkeydown = onUserActive   // onkeypress is deprectaed
     document.addEventListener('scroll', onUserActive, true) // improved see comments
 
+
+    const $ = await tlib._loadJquery()
+    window._loading_tlibs = window._loading_tlibs || []
     setInterval(() => {
         if (!window._loading_tlibs || window._loading_tlibs.length === 0) {
             return
         }
         let func = window._loading_tlibs.pop()
         console.log('load tlib:', func[0])
+        let name = func[0]
+        tlib._mods[name] = {
+            loaded: true,
+            finish: false,
+        }
         func[1]()
+        tlib._mods[name].finish = true
+
     }, 1000)
+
+    if (window.location.host == "st-turnilo.be.youpin.cn") {
+        tlib.loadLocal("be.js")
+    }
 
 })();
